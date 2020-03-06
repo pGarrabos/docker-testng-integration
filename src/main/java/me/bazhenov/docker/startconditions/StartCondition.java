@@ -2,7 +2,7 @@ package me.bazhenov.docker.startconditions;
 
 public @interface StartCondition {
 
-  Class<Condition> contition();
+  Class<Condition> condition();
   
   String[] parameters();
   
