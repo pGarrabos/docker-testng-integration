@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static me.bazhenov.docker.Docker.readListenPorts;
+import static me.bazhenov.docker.startconditions.PortsStarted.readListenPorts;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -24,7 +24,7 @@ public class DockerTest {
 
 	@BeforeMethod
 	public void setUp() {
-		docker = new Docker();
+		docker = Docker.getInstance();
 	}
 
 	@AfterMethod

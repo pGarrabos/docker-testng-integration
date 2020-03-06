@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 
+import me.bazhenov.docker.startconditions.Condition;
+import me.bazhenov.docker.startconditions.StartConditionRef;
+
 import java.io.*;
 import java.util.*;
 
@@ -33,22 +36,27 @@ import static org.slf4j.LoggerFactory.getLogger;
 @SuppressWarnings("WeakerAccess")
 public final class Docker implements Closeable {
 
-	private static final String IPV6_FILE_PATH = "/proc/self/net/tcp6";
-    
 	private static final Logger log = getLogger(Docker.class);
 	private static final ObjectMapper jsonReader = new ObjectMapper();
 
 	private final String pathToDocker;
 	private final Set<String> containersToRemove = new HashSet<>();
 
-	public Docker(String pathToDocker) {
+	private static Docker instance;
+	
+	private Docker(String pathToDocker) {
 		this.pathToDocker = requireNonNull(pathToDocker);
 	}
 
-	public Docker() {
+	private Docker() {
 		this("docker");
 	}
 
+	public static Docker getInstance() {
+	  if(instance == null) instance = new Docker();
+	  return instance;
+	}
+	
 	/**
 	 * Runs given container wait for it to finish and then return its stdout.
 	 * <p>
@@ -93,8 +101,7 @@ public final class Docker implements Closeable {
 				containersToRemove.add(cid);
 			checkContainerRunning(cid);
 
-			if (shouldWaitForOpenPorts(definition))
-				waitForPorts(cid, definition.getPublishedPorts().keySet());
+			fulfilAllConditions(definition.getStartConditions());
 
 			return cid;
 		} catch (IOException e) {
@@ -103,7 +110,12 @@ public final class Docker implements Closeable {
 		}
 	}
 
-	private static boolean shouldWaitForOpenPorts(ContainerDefinition definition) {
+	private void fulfilAllConditions(List<StartConditionRef> list) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  private static boolean shouldWaitForOpenPorts(ContainerDefinition definition) {
 		return !definition.getPublishedPorts().isEmpty() && definition.isWaitForAllExposedPortsToBeOpen();
 	}
 
@@ -246,38 +258,8 @@ public final class Docker implements Closeable {
 			: "";
 	}
 
-	/**
-	 * Waits for given ports to be open in a container.
-	 * <p>
-	 * Only TCP ports are monitored at the moment using /proc/self/net/tcp
-	 *
-	 * @param cid   container to monitor
-	 * @param ports ports to wait for
-	 */
-	private void waitForPorts(String cid, Set<Integer> ports) throws IOException, InterruptedException {
-		Thread self = currentThread();
-		long start = currentTimeMillis();
-		boolean reported = false;
-		while (!self.isInterrupted()) {
-			Set<Integer> openPorts = new HashSet<>();
-			openPorts.addAll(readListenPorts(docker("exec", cid, "cat", "/proc/self/net/tcp")));
-		    openPorts.addAll(readListenPorts(docker("exec", cid, "sh", "-c", "if [ -f " + IPV6_FILE_PATH + " ]; then cat " + IPV6_FILE_PATH + "; fi")));
-			
-			if (openPorts.containsAll(ports))
-				return;
 
-			checkContainerRunning(cid);
-
-			if (!reported && currentTimeMillis() - start > 5000) {
-				reported = true;
-				log.warn("Waiting for ports {} to open in container {}", ports, cid);
-			}
-
-			MILLISECONDS.sleep(200);
-		}
-	}
-
-  private String docker(String command, String... args) throws IOException, InterruptedException {
+  public String executeDockerCommands(String command, String... args) throws IOException, InterruptedException {
 		List<String> cmd = new ArrayList<>(args.length + 2);
 		cmd.add(pathToDocker);
 		cmd.add(command);
@@ -285,8 +267,8 @@ public final class Docker implements Closeable {
 		return doExecuteAndGetFullOutput(cmd);
 	}
 
-	private void checkContainerRunning(String id) throws IOException, InterruptedException {
-		String json = docker("inspect", id);
+	public void checkContainerRunning(String id) throws IOException, InterruptedException {
+		String json = executeDockerCommands("inspect", id);
 		JsonNode root = jsonReader.readTree(json);
 		String state = root.at("/0/State/Status").asText();
 		if (!"running".equalsIgnoreCase(state)) {
@@ -301,7 +283,7 @@ public final class Docker implements Closeable {
 	 * @throws InterruptedException when thread was interrupted
 	 */
 	public Map<Integer, Integer> getPublishedTcpPorts(String containerName) throws IOException, InterruptedException {
-		String json = docker("inspect", containerName);
+		String json = executeDockerCommands("inspect", containerName);
 		JsonNode root = jsonReader.readTree(json);
 
 		return doGetPublishedPorts(root);
@@ -341,24 +323,6 @@ public final class Docker implements Closeable {
 
 		return pts;
 	}
-
-	public static Set<Integer> readListenPorts(String output) {
-		Scanner scanner = new Scanner(output);
-		scanner.useRadix(16).useDelimiter("[\\s:]+");
-		Set<Integer> result = new HashSet<>();
-		if (scanner.hasNextLine())
-			scanner.nextLine();
-
-		while (scanner.hasNextLine()) {
-			scanner.nextInt();
-			scanner.next();
-			int localPort = scanner.nextInt();
-			result.add(localPort);
-			scanner.nextLine();
-		}
-		return result;
-	}
-
 
 	/**
 	 * Used for testing purposes only

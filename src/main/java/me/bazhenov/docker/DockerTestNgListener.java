@@ -20,7 +20,7 @@ import static java.lang.Thread.currentThread;
  */
 public class DockerTestNgListener extends TestListenerAdapter {
 
-	private final Docker docker = new Docker();
+	private final Docker docker = Docker.getInstance();
 
 	@Override
 	public void onStart(ITestContext testContext) {

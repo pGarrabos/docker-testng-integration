@@ -3,6 +3,9 @@ package me.bazhenov.docker;
 import java.io.File;
 import java.util.*;
 
+import me.bazhenov.docker.startconditions.Condition;
+import me.bazhenov.docker.startconditions.StartConditionRef;
+
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 
@@ -18,7 +21,9 @@ public final class ContainerDefinition {
 	private boolean waitForAllExposedPortsToBeOpen = true;
 	private String workingDirectory;
 	private Collection<VolumeDef> volumes = new ArrayList<>();
-
+	private List<StartConditionRef> startConditions = new ArrayList<>();
+	
+	
 	public ContainerDefinition(String image, String... command) {
 		this.image = requireNonNull(image);
 		this.command = requireNonNull(asList(command));
@@ -111,6 +116,14 @@ public final class ContainerDefinition {
 		return volumes;
 	}
 
+	public List<StartConditionRef> getStartConditions() {
+	  return startConditions;
+	}
+	
+	public void setStartConditions(List<StartConditionRef> startConditions) {
+	  this.startConditions = startConditions;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
@@ -124,12 +137,14 @@ public final class ContainerDefinition {
 			Objects.equals(environment, that.environment) &&
 			Objects.equals(workingDirectory, that.workingDirectory) &&
 			Objects.equals(volumes, that.volumes) &&
-			Objects.equals(customOptions, that.customOptions);
+			Objects.equals(customOptions, that.customOptions) &&
+		    Objects.equals(startConditions, that.startConditions);
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(image, command, publishedPorts, environment, removeAfterCompletion, waitForAllExposedPortsToBeOpen,
-			workingDirectory, volumes, customOptions);
+			workingDirectory, volumes, customOptions, startConditions);
 	}
+
 }

@@ -1,12 +1,14 @@
 package me.bazhenov.docker;
 
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.ElementType.TYPE_USE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.ElementType.TYPE_USE;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import me.bazhenov.docker.startconditions.StartCondition;
 
 /**
  * Describes which containers should be started before test execution.
@@ -78,4 +80,6 @@ public @interface Container {
 	 * @return working directory of a process inside a container
 	 */
 	String workingDir() default "";
+	
+	StartCondition[] startConditions() default {};
 }
